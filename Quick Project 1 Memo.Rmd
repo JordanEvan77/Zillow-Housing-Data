@@ -1,0 +1,143 @@
+---
+output: html_document
+---
+
+#### **To: Chris Lee and Management**  
+  
+#### **From: Jordan Gropper**  
+  
+#### **Date: 07/07/21**   
+  
+#### **RE: Zillow Data**  
+
+***
+
+```{r include = FALSE}
+# Set chunk options for the file
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+```
+
+```{r}
+# Course: 5210 Communicating Data
+# Purpose: Showing off my custom graph
+# Date: June 30th, 2021
+# Author: Jordan Gropper
+
+```
+
+```{r message = FALSE, echo = FALSE}
+# Load librarys
+library(tidyverse)
+library(data.table)
+```
+
+```{r message = FALSE, echo = FALSE}
+houses <- read.csv("qp1_data.csv")
+```
+
+After thurough analysis of the data, we have come up with a set of expected and unexpected results. As expected, a home with more living space tends to sell for more, this trend is also the case for the  amount of bedrooms, floors and bathrooms. The most common homes in the market, that sell the most, tend to be 1 to 2 floors, and have 1-3 bathrooms. These homes tend to have a price that falls between $180 per square foot and $318 per square foot. Surprisingly, we found that current condition is not always the most important factor for price, and that recent homes are in less quality condition than some homes built before 2000, but the lowest condition homes are from before the 1990's presumably, because they have had longer to deteriorate. The graph below shows current condition of the home, as well as when it was built, and the median price per sqft for that condition, from that year.
+
+<br>
+![](ConditionYrBuilt.png){width=1000px}
+
+
++ I found it interesting how there are a lump of homes from around the 1950s that are in poor condition, but have such high median prices per squarefoot, costing more than other really high quality homes. 
+ 
+  -This could be a data entry error, but more likely than not is a outlier in the data itself. 
+  - I left it in to preserve the full story of the data.
+  - As the table shows below, there are only 30 homes with the ranking of condition 1, which is the poorest.
+
+```{r message = FALSE, echo = FALSE}
+houses <- read.csv("qp1_data.csv")#read data into environment and assign to variable
+
+houses <- houses %>% 
+  mutate(living_sqft_price = price/sqft_living)
+
+houses <- houses %>% 
+  mutate(lot_sqft_price = price/sqft_lot)
+#class(living_sqft_price)
+
+med_price_cond <- houses %>%
+   group_by(condition) %>%
+   summarize(median_price = median(living_sqft_price)) 
+
+med_price_cond <- t(med_price_cond)
+
+condition_LH <- table(houses$condition)#I wanna show the median price of the full house for each grade
+#condition_LH <- t(condition_LH)
+condition_LH <- t(condition_LH)
+med_price_cond <- data.table(med_price_cond)
+#condition_LH <-  data.table(condition_LH)
+#condition_LH <- t(condition_LH)
+
+#class(condition_LH)
+
+#class(med_price_cond)
+
+condition_LH %>% knitr::kable()
+med_price_cond %>% knitr::kable()
+
+#rbind(condition_LH, med_price_cond)
+
+med_price_low <-  med_price_cond[2,1]
+
+med_price_high <- med_price_cond[2,5]
+
+
+#merge(med_price_cond, condition_LH)
+
+#expensive_low <- 
+  
+#expensive_high <- 
+```
+
+The amount of homes that have low condition, also tend to have a more expensive median cost per foot, with a median of $`r round(med_price_low, 2)`. This is compared to the amount of really nice condition homes that are at $`r round(med_price_high, 2)`. The Median of the second and third rank of condition are also lower than the lowest rank which is interesting.
+
+Generally speaking it is one of those cases with market trend that the larger the home, the more expensive each square foot will be, and in this data we do not have enough observations that qualify for the different views and water front property. Is it possible for us to get more of this data that is water front and has a variety of views? Below is a visual showing change of home quality overtime, and their prices, with condition rank 4 being the most expensive median, and the highest grade.
+
+
+<br>
+![](ExpensiveLowGrade.png){width=1000px}
+
+
+With occurnces where poor initial condition, and poor current condition can both be more expensive than mid range homes, there could be another variable at play. This could entirely be because there are a few of these observations that are really rare, but behave this way. It is also possible that it has to do with the particular neighbor hoods or zip code they are in, as shown below.
+
+<br>
+
+![](ExpensiveZipCodes.png){width=1000px}
+
++ As seen above there is also an odd concentration of home quality, and expensiv per capita living space in a few of the zip codes. Most notably 98000 and 98100. I imagine that land prices may be responsible for this, as the initial quality of the build is low. 
+  - Despite these occurences there are very few of them, so they may not be worth noting.
+  - A look at regression shows a few interesting things as well.
+
+![](PriceResiduals.png){width=1000px}
+
+<br>
+```{r message = FALSE, echo = FALSE}
+houses <- houses %>% 
+  mutate(living_sqft_price = price/sqft_living)
+
+houses <- houses %>% 
+  mutate(lot_sqft_price = price/sqft_lot)
+
+sqft_price_grade <- lm(formula = living_sqft_price ~ grade + condition + floors + bathrooms + bedrooms + zip_code + 
+                         yr_built, data = houses)
+
+
+summary(sqft_price_grade)
+```
+
++ I don't believe we were asked to delve into regression, but I found the coefficient implications useful. 
+  - First off, it is easy to identify the vast outliers that caused some of the interesting behavior in our early analysis
+  -these could be the ones that caused some of the issues with quality vs. price per capita.
+  - Additionally, when viewing the summary, it becomes aparent that Grade, Condition and floors
+    have the most signifigance in impacting price per square foot of space when the data set is observed as a whole.
+  - This is interesting because intuition would lead me to believe current condition mattered the most over initial build            grade.
+
+I hope this helps portray the interesting trends in the housing market within the area of data collection. The trends of quality, and specific zip code location are particularly important. If more data was collected on some of the less observed
+variables, they could have a significant impact as well. 
+
+Best regards,
+
+Quick Project 1 Team.

@@ -1,0 +1,922 @@
+---
+title: "Quick Project 1 Technical Appendix"
+author: "Jordan Gropper"
+date: "7/7/21"   
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
+---
+
+# set up data, tidy data, and EDA
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo = FALSE}
+# Course: 5210 Communicating Data
+# Purpose: Quick Project 1 Technical Appendix
+# Date: July 7th, 2021
+# Author: Jordan Gropper
+
+```
+
+```{r message = FALSE}
+library(ggplot2) 
+library(gridExtra) # use to put graphs together in the same frame
+library(janitor)
+library(knitr)
+library(GGally)
+library(scales) # to get $ and , on axis in graph
+library(tidyverse)
+library(corrplot)#used for correlation plot with good looks below
+```
+
+# Load and transform data
+
+```{r}
+houses <- read.csv("qp1_data.csv")#read data into environment and assign to variable
+
+houses <- houses %>% 
+  mutate(living_sqft_price = price/sqft_living)
+
+houses <- houses %>% 
+  mutate(lot_sqft_price = price/sqft_lot)
+#class(living_sqft_price)
+```
+
+
+# Base EDA Step 1: Uni-variate non-graphical EDA
+```{r}
+head(houses, 10)#check first ten
+str(houses)#check structure
+```
+
++ EDA findings non graphical:
+
+    - The data consists of 13 original well organized variables. These certainly make good sense in the context of looking into
+    the housing market.
+    -I believe that it would be useful to manipulate the data into another column or columns for meausuring single ratios. Such
+      as prcie per square living space foot and price per square foot of lot
+    - The data is Tidy with each observation(each home) being in one row, and each variable has its own column.with 21,613           observations we have a lot of good information to go off of.
+
+```{r}
+#Summary check for the data sets statistics
+summary(houses)#check sum stats.
+```
+    
+**Comments**
++ Summary stats on Quantitative
+
+    - Price and Bedrooms are not symetric as they are both skewed to the right with the mean being 
+      greater than the median by $90,000 for price, and by .37 of a room for bedrooms. 
+        - This indicates that median will be a better representation than the mean
+        -This works well for bedrooms too as it would be best to not observe fractions of a room
+        - Additionally it means that we will have to verify assumptions about the ability to 
+          linearly model this data if we are so inclined to produce a model.
+        - There could be a few outliers in this data set for price and bedroom.
+            - The max for both are well outside the 3rd quartile range of the data
+    - For the ratios of price per sqft of lot and living space they also have gigantic outliers, where 
+    the price per foot of space is multitudes larger than the 3rd quartile.
++ Summary stats of Categorical
+
+    - The included variables of yr_renovated and waterfront seem to vastly say that the majority of the homes
+      don't have a waterfront view and have not been renovated.
+    - The same could be said for the "grade" of the home
+        - In the context of the data both bedrooms and bathrooms are likely to have a few large outliers.
+    - The zip codes are relatively irrelevant for this type of analysis.
+    -It would be a good idea to take off the top and bottom 10% of some observations in final stages to observe
+    trends without bias.
+
+**Questions**
+
++ Data is unbalanced in many of the categorical variables
+
+    - are these variables still useful, as they have almost all observations in on categorey
++ Skew is heavy in some of the quantitative variables
+    
+    - Should some of the extreme outliers be removed?
+    -are there other ways we will want to be cautious with the skew,
+      beyond focusing on median instead of mean?
+        - ouliers could distort descriptive statistics
+    - check all uni-variate non-graphical findings visually
+    
+# Base EDA Step 2: Uni-variate graphical EDA
+
++ Here we will examine each variable individually
+
+## Categorical/Factor variables:
+
+```{r}
+watrfrnt <- ggplot(data = houses, mapping = aes(waterfront))
+view_grade <- ggplot(data = houses, mapping = aes(view))
+build_qaulity <- ggplot(data = houses, mapping = aes(grade))
+current_cond <- ggplot(data = houses, mapping = aes(condition))
+year_built <- ggplot(data = houses, mapping = aes(yr_built))
+yr_reno <- ggplot(data = houses, mapping = aes(yr_renovated))
+zip_code <- ggplot(data = houses, mapping = aes(zip_code))
+
+watrfrnt + geom_bar(fill = "blue")
+view_grade + geom_bar(fill = "blue")
+build_qaulity + geom_bar(fill = "blue")
+current_cond + geom_bar(fill = "blue")
+year_built + geom_bar(fill = "blue")
+yr_reno + geom_bar(fill = "blue", binwidth = 1000) 
+zip_code + geom_bar(fill = "blue")
+```
+    
+**Comments**
+
++ The majority of homes do not have a water front view
+
+    - it appears we may have a lot of inner city rural homes in this data
+
++ Most homes are in moderate condition with a rating of 3
+
+    - Many are in reasonable condition, and were built at a moderate grade
+
++ The majority of the homes have never been renovated
+
+    - renovations are mostly nonexistant, just general maintenance performed.
+
+## Quantitative variables
+
+### Price   
+```{r}
+price <- ggplot(data = houses, mapping = aes(price))
+price + geom_histogram(fill = "blue") + scale_x_continuous(labels = scales :: dollar)
+```
+
+### Bedrooms
+```{r}
+bedrooms <- ggplot(data = houses, mapping = aes(bedrooms))
+bedrooms + geom_histogram(fill = "blue")
+```
+
+### Bathrooms
+```{r}
+bathrooms <- ggplot(data = houses, mapping = aes(bathrooms))
+bathrooms + geom_histogram(fill = "blue")
+```
+
+### Square Feet of living space
+```{r}
+sqft_living <- ggplot(data = houses, mapping = aes(sqft_living))
+sqft_living + geom_histogram(fill = "blue")
+```
+
+### Size of Lot
+```{r}
+sqft_lot <- ggplot(data = houses, mapping = aes(sqft_lot))
+sqft_lot + geom_histogram(fill = "blue")
+```
+
+### Number of Stories
+```{r}
+levels <- ggplot(data = houses, mapping = aes(floors))
+levels + geom_histogram(fill = "blue") 
+```
+```{r}
+per_sqft_living <- ggplot(data = houses, mapping = aes(living_sqft_price))
+per_sqft_living + geom_histogram(fill = "blue") +
+  scale_x_continuous(labels = scales :: dollar)
+
+```
+```{r}
+per_sqft_lot <- ggplot(data = houses, mapping = aes(lot_sqft_price))
+per_sqft_lot + geom_histogram(fill = "blue") +
+  scale_x_continuous(labels = scales :: dollar)
+
+```
++ Portrays the variety of skew for each variable
++ Quantitative variables Price, Bedrooms, and sqft of living all have very harsh fall off, and long tail to right.
+
+    - will use median rather than mean for analysis
+    - This portrays how there are most likely some "mansions" in the data set causing skew.
+    - but they are important to our research question so will not remove them at this point.
+    - It would be a good idea to take the top 10% and bottom 10% of observations off to check at some point
++ Bathrooms is the variable that seems the most normally distributed
+
+    - Even here though there is the oddity of bathrooms being counted as a fraction of a unit.
++ The Mutated variables I added on are also skewed with long tails to the right.
+
+    - This makes sense as houses with extrodinarily high price per sqft of living and 
+    of the lot are uncommon.
+    
+### Full Categorical
+```{r  echo = FALSE}
+grid.arrange(
+  
+watrfrnt + geom_bar(fill = "blue"),
+
+view_grade + geom_bar(fill = "blue"),
+
+build_qaulity + geom_bar(fill = "blue"),
+
+current_cond + geom_bar(fill = "blue"),
+
+year_built + geom_bar(fill = "blue"),
+
+yr_reno + geom_bar(fill = "blue", binwidth = 10),
+
+zip_code + geom_bar(fill = "blue"),
+
+ncol = 2 )
+```
+
+### Full Quantitative
+```{r  echo = FALSE}
+grid.arrange(
+#price <- ggplot(data = houses, mapping = aes(price))
+price + geom_histogram(fill = "blue") + scale_x_continuous(labels = scales :: dollar), 
+
+#bedrooms <- ggplot(data = houses, mapping = aes(bedrooms))
+bedrooms + geom_histogram(fill = "blue"), 
+
+#bathrooms <- ggplot(data = houses, mapping = aes(bathrooms))
+bathrooms + geom_histogram(fill = "blue"), 
+
+#sqft_living <- ggplot(data = houses, mapping = aes(sqft_living))
+sqft_living + geom_histogram(fill = "blue"), 
+
+#sqft_lot <- ggplot(data = houses, mapping = aes(sqft_lot))
+sqft_lot + geom_histogram(fill = "blue"), 
+
+#levels <- ggplot(data = houses, mapping = aes(floors))
+levels + geom_histogram(fill = "blue"),
+
+per_sqft_living + geom_histogram(fill = "blue"),
+
+per_sqft_lot + geom_histogram(fill = "blue"),
+
+ncol = 2 )
+```
+
+# Base EDA Step 3: Multi-variate non-graphical 
+
+## Categorical 
+
+### Grade and view
+
+```{r}
+# Countingency/cross table
+houses %>% 
+  tabyl(grade, view) %>% # creates table of counts
+  adorn_totals(where = c("row", "col")) # Total margins
+
+```
+
+```{r}
+# Proportion contingency/cross table
+houses %>% 
+  tabyl(grade, view) %>% # creates table of counts
+  adorn_totals(where = c("row", "col")) %>%  # Total margins
+  adorn_percentages(denominator = "all") %>% # creates proportions
+  adorn_rounding(2) # round decimals
+
+```
+### Grade and Condition
+```{r}
+# Proportion contingency/cross table
+houses %>% 
+  tabyl(grade, condition) %>% # creates table of counts
+  adorn_totals(where = c("row", "col"))
+
+```
+
+
+```{r}
+# Proportion contingency/cross table
+houses %>% 
+  tabyl(grade, condition) %>% # creates table of counts
+  adorn_totals(where = c("row", "col")) %>%  # Total margins
+  adorn_percentages(denominator = "all") %>% # creates proportions
+  adorn_rounding(2) # round decimals
+
+```
+
+### Zip code and Year Renovated
+```{r}
+# Proportion contingency/cross table
+houses %>% 
+  tabyl(zip_code, yr_renovated) %>% # creates table of counts
+  adorn_totals(where = c("row", "col")) 
+```
+```{r}
+# Proportion contingency/cross table
+houses %>% 
+  tabyl(zip_code, yr_renovated) %>% # creates table of counts
+  adorn_totals(where = c("row", "col")) %>%  # Total margins
+  adorn_percentages(denominator = "all") %>% # creates proportions
+  adorn_rounding(2) # round decimals
+
+```
+### Year Built and Current Condition
+```{r}
+# Proportion contingency/cross table
+houses %>% 
+  tabyl(yr_built, condition) %>% # creates table of counts
+  adorn_totals(where = c("row", "col")) 
+```
+
+```{r}
+# Proportion contingency/cross table
+houses %>% 
+  tabyl(yr_built, condition) %>% # creates table of counts
+  adorn_totals(where = c("row", "col")) %>%  # Total margins
+  adorn_percentages(denominator = "all") %>% # creates proportions
+  adorn_rounding(2) # round decimals
+
+```
+**Comments**
+
++ shows that the grades are lumped near the middle, with majority having a low view rating.
+
+    - This means that the majority of homes are just built moderately well in our data
+    - Indicates that a home doesn't have to be built perfectly to then sell well later
+
++ There definitely seems to be a trend between initial build quality, and current condition.
+
+    - Those that are lumped within the medium range of build quality, tend to stay in the mid range.
+    - It is unlikely that a home will increase its condition over the years from its initial build grade
+    it appears so far, will look into more.
++ There is not a significant amount of renovated homes. When put into rounded proportions, none are shwon.
+
+    - It may be a good idea to remove the renovation variable
++ Build quality is spread out over build time
+
+    - It does not guarantee that just because a home is older that it will be in poor condition.
+
+**Questions**
+
++ Need to check one overlap of condition, grade and price
+
++ should we remove renovate since it is so unuseful?
+
+
+## Quantitative
+
+```{r}
+#uses all my variables? SHould I code it to be just the first 6?
+houses %>% 
+  select_if(is.numeric) %>% # Use to select just the numeric variables
+  cor() %>% 
+  round(2) %>% 
+  kable()
+```
+
+**Comments**
+
++ Strong correlation between price and sqft_living, as well as the initial grade of the build
+  
+    - This makes good sense, but it is interesting that it appears that current condition has little 
+    to do with price.
+    - Also interesting that price doesn't seem to correlate with size of the lot or the year it was built
++ Not surprising That something like zipcode has little to no correlation on any of the variables.
+
++ There are no strong correlations for the price per foot calculations for lot and living space .
+  
+    - I would interpret this as there being no single variable that makes an amount of space worth something.
+    -Each variable of the condition, grade, view and location all impact the price. 
+
+**Questions**
+
++ Does positive correlation imply causation: The higher the price, the larger the house?
+
+    - Makes sense since the larger the home, the more materials needed.
+
+
+# Base EDA Step 4: Multi-variate graphical
+
+## Step 4.1: Categorical
+
++ Bar graphs with multiple categorical variables
+
+
+```{r}
+condition <- factor("condition", levels = 1:5)
+class(condition)#should have fixed the problem but it
+condition
+grid.arrange(
+  houses %>% 
+    ggplot(mapping = aes(x = yr_built, fill = as.factor(condition))) +
+    geom_bar(position = "dodge"), 
+  
+  houses %>% 
+    ggplot(mapping = aes(x = zip_code, fill = as.factor(condition))) +
+    geom_bar(position = "dodge", mapping = aes(condition)), 
+  
+  houses %>% 
+    ggplot(mapping = aes(x = view, fill = as.factor(condition))) +
+    geom_bar(position = "dodge"),
+  
+  houses %>% 
+    ggplot(mapping = aes(x = grade)) +
+    geom_bar(position = "dodge", mapping = aes(fill = as.factor(condition))),
+  
+  ncol = 2)
+
+
+```
+```{r}
+grid.arrange(
+  # Cluster of counts
+  houses %>% 
+    ggplot(mapping = aes(x = yr_built)) + # Add additional variable by specify "fill"
+      geom_bar(mapping= aes(fill = as.factor(condition))),
+  # Proportion of counts
+  houses %>% 
+    group_by(yr_built, grade) %>% 
+    ggplot(mapping = aes(x = yr_built, fill = as.factor(grade))) + # Add additional variable by specify "fill"
+      geom_bar(mapping = aes(fill = as.factor(condition))) +
+      coord_flip(),
+
+ncol = 1
+)
+```
+**Comments**
+ 
++ We have good spread of data on building years.
+
+    - unusually low in the 2008 time period, maybe because of housing crash
+    - We have more data on homes built more recently
+    - The concentration of quality is spread out of the years.
+    - older homes have more of a chance of decaying quality
+    - more mid range quality homes built recently
+
+**Questions**
+
++ How does price vary per year on the homes?
+
++ Do only old homes degrade?
+
+
+
+
+## Step 4.2: Quantitative
+
+```{r}
+# Code scatterplots using grid.arrange so can see all quant variables of interest together
+houses %>% 
+  ggplot(mapping = aes(x = price, y = floors)) +
+  geom_point() + scale_x_continuous(labels = scales :: dollar)
+
+```
+```{r}
+# Code scatterplots using grid.arrange so can see all quant variables of interest together
+houses %>% 
+  ggplot(mapping = aes(x = price, y = bedrooms)) +
+  geom_point() + scale_x_continuous(labels = scales :: dollar)
+
+```
+```{r}
+# Code scatterplots using grid.arrange so can see all quant variables of interest together
+houses %>% 
+  ggplot(mapping = aes(x = price, y = sqft_living)) +
+  geom_point() + scale_x_continuous(labels = scales :: dollar)
+
+```
+**Comments**
+
++ Interesting pattern
+
+    - Bedrooms, space and floors usually all impact price
+    - however there are multi floor houses with rooms that are cheaper then they should be
+    - This could be due to quality and condition of the home
+    
+**Questions**
+
++ How do grade, condition and size interact to cause this disparity?
+
+    - observe median price per square foot in comparison with build details
+
+## Step 4.3: Categorical and quantitative
+
+```{r message = FALSE}
+# Use ggpairs from the GGally package
+houses %>%
+  ggpairs()
+
+```
+
+```{r}
+cor_houses<- (cor(houses))
+corrplot(cor_houses,
+         method = "number",
+         sig.level = 0.05,
+         order = "original",
+         diag = FALSE,
+         type = "upper",
+         tl.srt = 45,
+         tl.col = "black")
+
+```
+**Comments**
+
++ Each factor contributes reasonably
+
+    - both grade and size of the house impact the price
+    -grade and condition are intertwine slightly
+    - the size of the living space impacts initial grade
+      - nice large homes
+
+**Questions**
+
++ Look more closely at:
+    
+    - location, condition, grade, price, size
+    - size and price together
+
+## Location, price and quality
+
+**Follow up on correlation graph questions below**
+
+
+```{r}
+# Show code
+houses <- read.csv("qp1_data.csv")
+#head(houses, 10)
+str("condition")
+grid.arrange(
+  # age, price size and condition
+  houses %>% 
+    ggplot(mapping = aes(x = price, y = sqft_living, color = condition)) +
+      geom_point() +
+      geom_smooth(method = "lm", se = FALSE) +
+    scale_x_continuous(labels = scales :: dollar),
+  
+    houses %>% 
+    ggplot(mapping = aes(x = price, y = zip_code, color = grade)) +
+      geom_point() +
+      geom_smooth(method = "lm", se = FALSE) +
+    scale_x_continuous(labels = scales :: dollar),
+
+ncol = 1
+)
+
+```
+
+**Comments**
+
++ The shading outliers for grade and condition are similar
+
+    - it appears that both grade and condition have outliers that impact price
+    - there is a steady shading pattern left to right for grade, but it is staggered
+      for condition
+
++ Zip codes do appear to impact price
+
+    - there are som zipcodes that have only low price homes, and some with high price
+    -the slop of the regression line is weak and insignificant for zip code
+
+**Questions**
+
++ Look at zip code impact on quality and condition
+
+    - is condition and grade spread evenly between zip codes?
+  
+```{r}
+# Show code
+grid.arrange(
+  # condition and grade
+  houses %>% 
+    ggplot(mapping = aes(x = condition, y = grade)) +
+      geom_boxplot() +
+    coord_flip(),
+  # price and condition
+  houses %>% 
+    ggplot(mapping = aes(x = condition, y = price)) +
+      geom_boxplot() +
+    coord_flip() +
+    scale_y_continuous(labels = scales :: dollar),
+
+ncol = 1
+)
+
+```
+
+**Comments**
+
++ Condition Vs. Grade
+
+    - The distribution of grade is very focused between 5-10, with a handful of exceptions on either side
+
++ condition Vs. Price
+    
+    - The price is strung out heavily with outliers to the right, and is focused on prices around $300k-$600k
+  
+**Questions**
+
++ What impact does condition and grade have
+
+    - are there certain zip codes with low grade, high price?
+    - what is more impactful on price, grade or condition?
+
+# Detailed EDA Questions Raised in Base EDA 7
+```{r}
+# Group the median expenditure and age in same graph
+grid.arrange(
+  
+# Median price by condition and grade
+houses %>%
+  group_by(grade, condition) %>% 
+  summarise(med_price = median(price)) %>% 
+  ggplot(mapping = aes(x = grade, y = med_price, fill = condition)) + 
+    geom_bar(stat = "identity", position = "dodge") +
+    coord_flip() +
+    scale_y_continuous(labels = scales :: dollar), # Use coord_flip() to make easier to read
+
+# Median year built by condition and grade
+houses %>%
+  group_by(grade, condition) %>% 
+  summarise(med_sqft= median(sqft_living)) %>% 
+  ggplot(mapping = aes(x = grade, y = med_sqft, fill = condition)) + 
+    geom_bar(stat = "identity", position = "dodge") +
+    coord_flip(), 
+
+ncol = 1
+)
+
+```
+
+**Comments**
+
++ Median Price
+
+    - There are Certainly homes that are very expensive that have declined in quality
+    - There are also homes with poor quality that have improved, causing price to rise
+    - There are large homes with both varieties of quality
+
+**Questions**
+
++ Curious as to how degraded condition impacts price per foot
+
+    - are there homes that were high quality, and are expensive with low quality condition?
+    - how does location play into all of this?
+
+
+
+
+## Median price and Quality 7.1
+
+```{r}
+# Group the median expenditure and age in same graph
+
+grid.arrange(
+  
+# Median price by condition and grade
+houses %>%
+  group_by(grade, zip_code) %>% 
+    summarise(med_sqft = median(sqft_living)) %>% 
+    ggplot(mapping = aes(x = grade, y = med_sqft, fill = zip_code)) + 
+      geom_bar(stat = "identity", position = "dodge"),# +
+    #coord_flip(), # Use coord_flip() to make easier to read
+
+# Median year built by condition and grade
+
+
+houses %>%
+  group_by(grade, condition) %>% 
+  summarise(med_sqft= median(sqft_living)) %>% 
+  ggplot(mapping = aes(x = grade, y = med_sqft, fill = condition)) + 
+    geom_bar(stat = "identity", position = "dodge") +
+    coord_flip(), 
+
+houses %>%
+  mutate(living_sqft_price = price/sqft_living) %>% 
+  group_by(grade, condition) %>% 
+  summarise(med_price_per_sqft= median(living_sqft_price)) %>% 
+  ggplot(mapping = aes(x = grade, y = med_price_per_sqft, fill = condition)) + 
+    geom_bar(stat = "identity", position = "dodge") +
+    coord_flip(), 
+
+ncol = 1
+)
+
+```
+**Comments**
+
++ so it appears that the initial quality of the build does somewhat trend with the location and size.
+
+    -there appear to be a lot more lighter blue zipcodes (98150) that are initially built very nicely
+    -and it seems that most small homes had initial poor build quality, which is an interesting thought.
+  
++ For homes with a median square footage of around 2,500 feet or less condition is better
+
+    - it appears that home deterioration can happen in large homes with high quality initial builds,
+    perhaps more easily than a mid size home that is easier to maintain.
+    - It appears that for grade 6 homes larger than about 2,600 feet, they deteriorate a lot. 
+  
++ With Median Price per squar foot in mind, it appears that low grade homes are more expensive.
+
+    - this is could be a misinterpretation of the data, but it appears that homes that are built in low
+    quality are actually more expensive per square foot.
+    - this could be an inefficiency with the building process, where there is a sort of threshold to breach
+     when buliding the home, that no matter the quality, it is expensive.
+  
+
+
+**Questions**
+
++ Need to examine why median price per square foot seems to be higher in poor grade homes?
+  
+    -is this a data error? Or is it generally more expensive per square foot in low grade initial builds?
+    -medium grade homes can deteriorate to low condition quality homes.
+    - Why are some high grade homes cheaper to make per square foot?
+    - Does zip code play a part in price per squarefoot, like expensive area, low quality home?
+    - new graph to filter out and focus on low grade homes (5 or less rating), how many observations are there?
+    - compare this to high grade 10 or greater
+  
+## Observations of grade filtered, and review of outliers 7.2   
+```{r}
+#quality homes are focused in 4 zip codes, and that they all are rather expensive per sqft! Maybe some filtering of zipcodes
+#here too? or a line graph?
+# filter down initial grade
+grade_filtered <-  c(1, 2, 3, 4, 10, 11, 12, 13)
+factor(condition, levels = c(1, 2, 3, 4, 5))
+
+
+grid.arrange(
+
+houses %>%
+  filter(grade %in% grade_filtered) %>%
+  mutate(living_sqft_price = price/sqft_living) %>% 
+  group_by(grade) %>% 
+    summarise(med_price_per_sqft= median(living_sqft_price)) %>% 
+    ggplot(mapping = aes(x = grade, y = med_price_per_sqft)) + 
+      geom_bar(stat = "identity", position = "dodge", fill = "light blue"),
+
+ggplot(data = houses, mapping = aes(grade)) + geom_bar(fill = "blue"), 
+
+ggplot(data = houses, mapping = aes(condition)) + geom_bar(fill = "blue"), 
+
+ncol = 3
+)
+```
+
+**Comments**
+
++ The majority of the grade and condition observations are in the middle
+    
+    - This means that the odd interactions we keep seeing on the lower end could be extreme outliers
+
+## Condition, Median Price per foot, By year built 7.3
+```{r}
+condition_by_year <- houses %>%
+  mutate(living_sqft_price = price/sqft_living) %>% 
+  group_by(yr_built, condition) %>% 
+  summarise(med_price_per_sqft= median(living_sqft_price)) %>% 
+  ggplot(mapping = aes(x = yr_built, y = med_price_per_sqft, fill = condition)) + 
+    geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Year Built", y = "Median Price Per Square Foot", title = "Median Price Per Square Foot, In Respect To The Year The Home Was Built", subtitle = "Price per foot is varied, but almost feels to be trending down, with interesting outliers")
+condition_by_year
+
+ggsave(filename = "ConditionYrBuilt.png", plot = condition_by_year)
+
+```
+**comments**
+
++ Condition can remain excellent despite age
+  
+    - there are some extremely old homes that have very good condition
+    - there are some very new homes that are in poor condition
+    - there are homes that are old, in terrible condition, and sold for a lot
+**Quesitons**
++ things to consider, why did these old homes sell for a lot in poor condition?
+
+    - is it due to value of location?
+    - is ther historical value to the homes?
+
+## Filtered Grades with Median Price Per Square Foot of Living Space 7.4
+```{r}
+grade_filtered <-  c(1, 2, 3, 4, 10, 11, 12, 13)
+factor(condition, levels = c(1, 2, 3, 4, 5))
+
+grid.arrange(
+#houses %>%
+#  filter(grade %in% grade_filtered) %>%
+#  mutate(living_sqft_price = price/sqft_living) %>% 
+#  group_by(condition) %>% 
+#    summarise(med_price_per_sqft= median(living_sqft_price)) %>% 
+#    ggplot(data = houses, mapping = aes(x = condition, y = living_sqft_price, fill = grade)) + 
+#      geom_bar(stat = "identity", position = "dodge"),   
+houses %>%
+  mutate(living_sqft_price = price/sqft_living) %>% 
+  group_by(condition, grade) %>% 
+    summarise(med_price_per_sqft= median(living_sqft_price)) %>% 
+    ggplot(mapping = aes(x = condition, y = med_price_per_sqft, fill = grade)) + 
+      geom_bar(stat = "identity", position = "dodge"),
+
+Expensive_low <- houses %>%
+  filter(grade %in% grade_filtered) %>%
+  mutate(living_sqft_price = price/sqft_living) %>% 
+  group_by(condition, grade) %>% 
+    summarise(med_price_per_sqft= median(living_sqft_price)) %>% 
+    ggplot(mapping = aes(x = condition, y = med_price_per_sqft, fill = grade)) + 
+      geom_bar(stat = "identity", position = "dodge", guide = guide_legend(reverse = TRUE)) + theme_classic() + scale_y_continuous(labels = scales :: dollar) +
+  labs(x = "Condition Ranking", y = "Median Price Per Square Foot", title = "Condition Over Time, In Respect To Cost Per Foot of Living Space", subtitle = "House condition has improved, declined and remained consistent. Price per foot is varied."), 
+
+ncol = 2
+)
+ggsave(filename = "ExpensiveLowGrade.png", plot = Expensive_low) 
+```
+**Comments**
+
++ so it appears that the initial quality of the build does somewhat trend with the location and size.
+
+  -there appear to be a lot more lighter blue zipcodes (98150) that are initially built very nicely
+  -and it seems that most small homes had initial poor build quality, which is an interesting thought.
+  
++ For homes with a median square footage of around 2,500 feet or less condition is better
+
+  - it appears that home deterioration can happen in large homes with high quality initial builds,
+    perhaps more easily than a mid size home that is easier to maintain.
+  - It appears that for grade 6 homes larger than about 2,600 feet, they deteriorate a lot. 
+
++ With Median Price per squar foot in mind, it appears that low grade homes are more expensive.
+
+  - this is could be a misinterpretation of the data, but it appears that homes that are built in low
+    quality are actually more expensive per square foot.
+  - this could be an inefficiency with the building process, where there is a sort of threshold to breach
+   when buliding the home, that no matter the quality, it is expensive.
+  
+
+
+
+## Expense Per Living Square Foot by Zip Code 7.5
+```{r}
+Expensive_zips <- houses %>%
+  group_by(zip_code, condition) %>% 
+  mutate(living_sqft_price = price/sqft_living) %>% 
+  summarise(med_price_per_sqft= median(living_sqft_price)) %>% 
+  ggplot(mapping = aes(y = med_price_per_sqft, x = zip_code, fill = condition)) + 
+    geom_bar(stat = "identity", position = "dodge", guide = guide_legend(reverse = TRUE)) + theme_classic() + scale_y_continuous(labels = scales :: dollar) +
+  labs(x = "Zip Codes", y = "Median Price Per Square Foot", title = "There are neighborhoods that have expensive hoems", subtitle = "Our potential outliers seem to be congregated in two zip code, 98000 & 98100")
+
+Expensive_zips
+
+ggsave(filename = "ExpensiveZipCodes.png", plot = Expensive_zips) 
+
+
+```
+**Comments**
+
++There are certainly a large number of neighborhoods that have low condition homes
+
+    -Of these neighbor hoods there are a few that are particularly expensive.
+    -98000 and 98100 have a very odd stack of expensive spaced homes in poor condition
+    
+## Minor Regression Analysis 7.6
+```{r}
+houses <- read.csv("qp1_data.csv")#read data into environment and assign to variable
+
+houses <- houses %>% 
+  mutate(living_sqft_price = price/sqft_living)
+
+houses <- houses %>% 
+  mutate(lot_sqft_price = price/sqft_lot)
+
+sqft_price_grade <- lm(formula = living_sqft_price ~ grade + condition + floors + bathrooms + bedrooms + zip_code + 
+                         yr_built, data = houses)
+
+
+summary(sqft_price_grade)
+
+res_price <- resid(sqft_price_grade)
+
+houses %>% 
+  ggplot(mapping = aes(x = condition, y =living_sqft_price)) +
+  geom_point() + 
+  geom_smooth(method = lm)
+
+Price_residuals <- ggplot(sqft_price_grade, aes(.fitted, .resid)) +
+  geom_point(aes(y = res_price), color = "cadetblue4") +
+  geom_hline(yintercept = 0, col = "red", linetype = "dashed") +
+  labs(x = "Fitted",
+       y = "Residuals",
+       title = "Residuals vs Price Per Square Foot",
+       subtitle = "lm(formula = living_sqft_price ~ grade + condition + floors + bathrooms + bedrooms, data = houses)") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(color = ),
+        plot.title = element_text(hjust = 0.5, size = 20, face = "bold",
+                                  color = "dodgerblue4"),
+        plot.subtitle = element_text(hjust = 0.5, size = 10, color = "slategrey"),
+        plot.caption = element_text(color = "gray60"))
+Price_residuals
+
+ggsave(filename = "PriceResiduals.png", plot = Price_residuals) 
+```
+
+
+**Comments**
+
++ Looking at regression analysis seems to show generalized outliers
+    -I took the majority of the variables that had enough meaningful observations and used them to create a regression
+    - the fitted vs. residuals is what I wanted to get at, as it indicates how the outliers look with the regression as baseline
+    -From this it is easy to see that there are a dozen or so very out of range values that would cause the plots to appear
+    the way they have when comparing quality vs. cost of square footage.    
